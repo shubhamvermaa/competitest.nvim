@@ -87,6 +87,7 @@ function RunnerUI:new(runner)
 		viewer_content = nil,
 		diff_view = runner.config.view_output_diff,
 		restore_winid = runner.ui_restore_winid,
+		keep_focus = false,
 		update_details = false,
 		update_windows = false,
 		update_testcase = nil,
@@ -114,7 +115,11 @@ end
 
 ---Show Runner UI if not already shown.
 ---It initializes UI if called for the first time or resized.
-function RunnerUI:show_ui()
+---@param keep_focus boolean? if true, keep focus on restore_winid
+function RunnerUI:show_ui(keep_focus)
+	if keep_focus ~= nil then
+		self.keep_focus = keep_focus
+	end
 	if not self.ui_initialized or (not self.interface.show_ui and not self.ui_visible) then -- initialize ui
 		self.interface.init_ui(self.windows, self.runner.config, self.restore_winid)
 
@@ -267,7 +272,11 @@ function RunnerUI:show_ui()
 		self.diff_view = false
 		self:toggle_diff_view()
 	end
-	api.nvim_set_current_win(self.windows.tc.winid)
+	if keep_focus and self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
+		api.nvim_set_current_win(self.restore_winid)
+	else
+		api.nvim_set_current_win(self.windows.tc.winid)
+	end
 end
 
 ---Enable or disable diffview in given window
@@ -302,16 +311,18 @@ end
 function RunnerUI:hide_ui()
 	if self.ui_visible then
 		self:disable_diff_view() -- disable diff when closing windows to prevent conflicts with other diffviews
+		if self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
+			pcall(api.nvim_set_current_win, self.restore_winid)
+		end
 		for _, w in pairs(self.windows) do
 			if w then -- if a window is uninitialized its value is nil
-				w:hide()
+				pcall(function()
+					w:hide()
+				end)
 			end
 		end
 		self.ui_visible = false
 		self.viewer_visible = false
-		if self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
-			api.nvim_set_current_win(self.restore_winid)
-		end
 	end
 end
 
@@ -321,9 +332,14 @@ function RunnerUI:delete()
 	if self.ui_visible then
 		self:disable_diff_view() -- disable diff when closing windows to prevent conflicts with other diffviews
 	end
+	if self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
+		pcall(api.nvim_set_current_win, self.restore_winid)
+	end
 	for name, w in pairs(self.windows) do
 		if w then -- if a window is uninitialized its value is nil
-			w:unmount()
+			pcall(function()
+				w:unmount()
+			end)
 			self.windows[name] = nil
 		end
 	end
@@ -331,9 +347,6 @@ function RunnerUI:delete()
 	self.ui_visible = false
 	self.viewer_initialized = false
 	self.viewer_visible = false
-	if self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
-		api.nvim_set_current_win(self.restore_winid)
-	end
 end
 
 ---@private
@@ -435,26 +448,17 @@ function RunnerUI:update_ui()
 				local l = { header = "TC " .. data.tcnum, status = data.status, time = "" }
 				if data.tcnum == "Compile" then
 					l.header = data.tcnum
-					-- open viewer popup showing compilation errors when compilation fails
 					if
-						self.runner.config.runner_ui.viewer.open_when_compilation_fails
+						not data.running
 						and not data.killed
 						and data.exit_code
 						and data.exit_code ~= 0
 						and data.process.starting_time ~= self.latest_compilation_timestamp
 					then
-						if api.nvim_win_get_cursor(self.windows.tc.winid)[1] == 1 then
-							self.update_testcase = 1
-							self.viewer_content = "se"
-							self.make_viewer_visible = true
-							self.latest_compilation_timestamp = data.process.starting_time
-						else
-							-- move cursor to "Compile" line if not already there, then self:update_ui() will be triggered by CursorMoved event
-							self.update_testcase = nil
-							self.update_windows = true
-							api.nvim_win_set_cursor(self.windows.tc.winid, { 1, 0 })
-							return
-						end
+						self.update_testcase = 1
+						self.update_details = true
+						self.make_viewer_visible = false
+						self.latest_compilation_timestamp = data.process.starting_time
 					end
 				end
 				if data.time and data.time ~= -1 then
@@ -482,13 +486,38 @@ function RunnerUI:update_ui()
 				api.nvim_buf_add_highlight(bufnr, -1, hl.group, hl.line, hl.start_pos, hl.end_pos)
 			end
 			vim.bo[bufnr].modifiable = false
+
+			if self.windows.tc and self.windows.tc.winid and api.nvim_win_is_valid(self.windows.tc.winid) then
+				pcall(function()
+					local tc_height = math.max(1, math.min(15, #buffer_lines))
+					vim.wo[self.windows.tc.winid].winfixheight = false
+					api.nvim_win_set_height(self.windows.tc.winid, tc_height)
+					vim.wo[self.windows.tc.winid].winfixheight = true
+				end)
+			end
 		end
 
 		-- update details windows if not already updated
 		if self.update_details then
 			self.update_details = false
 
-			local data = self.runner.tcdata[self.update_testcase or 1]
+			local default_idx = 1
+			if self.runner.tcdata[1] and self.runner.tcdata[1].tcnum == "Compile" then
+				if not self.runner.tcdata[1].exit_code or self.runner.tcdata[1].exit_code == 0 then
+					if #self.runner.tcdata >= 2 then
+						default_idx = 2
+					end
+				end
+			end
+
+			if not self.update_testcase then
+				self.update_testcase = default_idx
+				if self.windows.tc and self.windows.tc.winid and api.nvim_win_is_valid(self.windows.tc.winid) then
+					pcall(api.nvim_win_set_cursor, self.windows.tc.winid, { default_idx, 0 })
+				end
+			end
+
+			local data = self.runner.tcdata[self.update_testcase or default_idx]
 			if not data then
 				return
 			end
@@ -502,15 +531,81 @@ function RunnerUI:update_ui()
 				vim.bo[bufnr].modifiable = false
 			end
 
+			local function is_empty_lines(lines)
+				if not lines or #lines == 0 then return true end
+				for _, l in ipairs(lines) do
+					if l ~= "" then return false end
+				end
+				return true
+			end
+
+			local err_lines = data.stderr
+			if is_empty_lines(err_lines) and data.exit_code and data.exit_code ~= 0 then
+				err_lines = data.stdout
+			end
+
 			set_buf_content(self.windows.so.bufnr, data.stdout)
 			set_buf_content(self.windows.eo.bufnr, data.expout)
 			set_buf_content(self.windows.si.bufnr, data.stdin)
-			set_buf_content(self.windows.se.bufnr, data.stderr)
+			set_buf_content(self.windows.se.bufnr, err_lines)
+
+			if self.windows.se then
+				local has_error = (data.exit_code and data.exit_code ~= 0) or not is_empty_lines(err_lines)
+				if has_error then
+					pcall(function()
+						self.windows.se:show()
+						if self.windows.se.winid and api.nvim_win_is_valid(self.windows.se.winid) then
+							vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong# ERRORS %*"
+						end
+					end)
+				else
+					pcall(function() self.windows.se:hide() end)
+				end
+			end
+
+			if self.windows.si and self.windows.si.winid and api.nvim_win_is_valid(self.windows.si.winid) then
+				pcall(function()
+					local si_lines = data.stdin and #data.stdin or 0
+					local si_height = math.max(2, math.min(20, si_lines))
+					vim.wo[self.windows.si.winid].winfixheight = false
+					api.nvim_win_set_height(self.windows.si.winid, si_height)
+					vim.wo[self.windows.si.winid].winfixheight = true
+				end)
+			end
+
+			if self.windows.so and self.windows.so.winid and api.nvim_win_is_valid(self.windows.so.winid) then
+				pcall(function()
+					vim.wo[self.windows.so.winid].winbar = "%#CompetiTestDone# OUTPUT %*"
+				end)
+			end
+
+			if self.windows.eo and self.windows.eo.winid and api.nvim_win_is_valid(self.windows.eo.winid) then
+				pcall(function()
+					if is_empty_lines(data.expout) then
+						vim.wo[self.windows.eo.winid].winbar = "%#CompetiTestRunning# EXP %*"
+						vim.wo[self.windows.eo.winid].winfixwidth = false
+						api.nvim_win_set_width(self.windows.eo.winid, 8)
+						vim.wo[self.windows.eo.winid].winfixwidth = true
+					else
+						vim.wo[self.windows.eo.winid].winbar = "%#CompetiTestRunning# EXPECTED %*"
+						vim.wo[self.windows.eo.winid].winfixwidth = false
+						if self.windows.so and self.windows.so.winid and api.nvim_win_is_valid(self.windows.so.winid) then
+							local total_w = api.nvim_win_get_width(self.windows.so.winid) + api.nvim_win_get_width(self.windows.eo.winid)
+							local half_w = math.floor(total_w / 2)
+							api.nvim_win_set_width(self.windows.eo.winid, half_w)
+						end
+					end
+				end)
+			end
 		end
 
 		if self.make_viewer_visible then
 			self.make_viewer_visible = false
 			self:show_viewer_popup()
+		end
+
+		if self.keep_focus and self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
+			pcall(api.nvim_set_current_win, self.restore_winid)
 		end
 	end)
 end

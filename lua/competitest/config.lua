@@ -174,15 +174,13 @@ local default_config = {
 		relative_to_editor = true,
 		total_width = 0.3,
 		vertical_layout = {
-			{ 1, "tc" },
-			{ 1, {
+			{ 1, "si" },
+			{ 2, {
 				{ 1, "so" },
 				{ 1, "eo" },
 			} },
-			{ 1, {
-				{ 1, "si" },
-				{ 1, "se" },
-			} },
+			{ 1, "se" },
+			{ 1, "tc" },
 		},
 		total_height = 0.4,
 		horizontal_layout = {

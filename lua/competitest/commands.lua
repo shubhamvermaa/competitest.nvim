@@ -249,6 +249,11 @@ end
 ---@param only_show boolean if `true` show previously closed CompetiTest windows without executing testcases
 function M.run_testcases(testcases_list, compile, only_show)
 	local bufnr = api.nvim_get_current_buf()
+	if not only_show then
+		api.nvim_buf_call(bufnr, function()
+			vim.cmd("silent! update")
+		end)
+	end
 	config.load_buffer_config(bufnr)
 	local tctbl = testcases.buf_get_testcases(bufnr)
 
@@ -266,6 +271,10 @@ function M.run_testcases(testcases_list, compile, only_show)
 		tctbl = new_tctbl
 	end
 
+	if next(tctbl) == nil then
+		tctbl[1] = { input = "", output = nil }
+	end
+
 	if not M.runners[bufnr] then -- no runner is associated to buffer
 		M.runners[bufnr] = require("competitest.runner"):new(api.nvim_get_current_buf())
 		if not M.runners[bufnr] then -- an error occurred
@@ -280,7 +289,7 @@ function M.run_testcases(testcases_list, compile, only_show)
 		r:run_testcases(tctbl, compile)
 	end
 	r:set_restore_winid(api.nvim_get_current_win())
-	r:show_ui()
+	r:show_ui(not only_show)
 end
 
 ---Receive testcases, problems, contests or receive persistently from Competitive Companion

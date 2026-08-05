@@ -158,9 +158,17 @@ function TCRunner:run_testcases(tctbl, compile)
 		end
 		for tcnum, tc in pairs(tctbl) do
 			table.insert(self.tcdata, {
-				stdin = vim.split(tc.input, "\n", { plain = true }),
+				stdin = vim.split(tc.input or "", "\n", { plain = true }),
 				expout = tc.output and vim.split(tc.output, "\n", { plain = true }),
 				tcnum = tcnum,
+				timelimit = self.config.maximum_time,
+			})
+		end
+		if #self.tcdata == (self.compile and 1 or 0) then
+			table.insert(self.tcdata, {
+				stdin = { "" },
+				expout = nil,
+				tcnum = 1,
 				timelimit = self.config.maximum_time,
 			})
 		end
@@ -209,6 +217,8 @@ function TCRunner:run_testcases(tctbl, compile)
 		local function compilation_callback()
 			if self.tcdata[1].exit_code == 0 then
 				run_first_testcases()
+			else
+				self:cleanup_binary()
 			end
 		end
 		self:execute_testcase(1, self.cc, self.compile_directory, compilation_callback)
@@ -273,6 +283,7 @@ function TCRunner:execute_testcase(tcindex, cmd, dir, callback)
 		if callback then
 			callback()
 		end
+		self:check_finished()
 	end)
 	if not process.handle then
 		utils.notify("TCRunner:execute_testcase: failed to spawn process using '" .. cmd.exec .. "' (" .. process.pid .. ").")
@@ -382,17 +393,60 @@ function TCRunner:kill_all_processes()
 			self:kill_process(tcindex)
 		end
 	end
+	self:cleanup_binary()
+end
+
+---Cleanup compiled binary/object file
+function TCRunner:cleanup_binary()
+	if not self.rc or not self.rc.exec then
+		return
+	end
+	local binary_path = self.rc.exec
+	if string.sub(binary_path, 1, 2) == "./" then
+		binary_path = self.running_directory .. string.sub(binary_path, 3)
+	elseif string.sub(binary_path, 1, 1) ~= "/" then
+		binary_path = self.running_directory .. binary_path
+	end
+
+	local files_to_check = {
+		binary_path,
+		binary_path .. ".o",
+		binary_path .. ".out",
+		binary_path .. ".exe",
+	}
+
+	for _, fpath in ipairs(files_to_check) do
+		if utils.does_file_exist(fpath) then
+			utils.delete_file(fpath)
+		end
+	end
+end
+
+---Check if all processes are finished, and if so, clean up object files
+function TCRunner:check_finished()
+	if not self.tcdata then
+		return
+	end
+	for _, tc in ipairs(self.tcdata) do
+		if tc.running then
+			return
+		end
+	end
+	if self.next_tc > #self.tcdata or (self.tcdata[1] and self.tcdata[1].tcnum == "Compile" and self.tcdata[1].exit_code ~= 0) then
+		self:cleanup_binary()
+	end
 end
 
 ---Show Runner UI
-function TCRunner:show_ui()
+---@param keep_focus boolean? if true, keep focus on restore_winid
+function TCRunner:show_ui(keep_focus)
 	if not self.tcdata then -- nothing to show
 		return
 	end
 	if not self.ui then
 		self.ui = require("competitest.runner_ui"):new(self)
 	end
-	self.ui:show_ui()
+	self.ui:show_ui(keep_focus)
 	self.ui:update_ui()
 end
 
