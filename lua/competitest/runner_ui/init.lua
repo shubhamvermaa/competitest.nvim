@@ -132,9 +132,10 @@ function RunnerUI:show_ui(keep_focus)
 			tc = "Testcases", -- testcases selector
 		}
 		for n, w in pairs(self.windows) do
-			if n ~= "vw" then
+			if n ~= "vw" and w and w.winid and api.nvim_win_is_valid(w.winid) then
 				api.nvim_buf_set_var(w.bufnr, "competitest_title", windows_names[n])
 				api.nvim_buf_set_name(w.bufnr, "CompetiTest" .. string.gsub(windows_names[n], " ", "") .. w.bufnr)
+				vim.wo[w.winid].list = false
 			end
 		end
 
