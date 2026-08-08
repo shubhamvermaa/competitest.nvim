@@ -397,7 +397,7 @@ function M.submit_solution(custom_url)
 			languageId = lang_id,
 		}
 
-		if not receive_module.receiver then
+		if not receive_module.is_receiving() then
 			M.receive("persistently")
 		end
 

@@ -64,12 +64,12 @@ function Receiver:new(address, port, callback)
 						else
 							resp_body = vim.json.encode({ empty = true })
 						end
-						local response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nConnection: close\r\nContent-Length: " .. #resp_body .. "\r\n\r\n" .. resp_body
+						local response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: cph-submit, Content-Type, Authorization, *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nConnection: close\r\nContent-Length: " .. #resp_body .. "\r\n\r\n" .. resp_body
 						client:write(response, function()
 							client:close()
 						end)
 					elseif string.find(raw_req_lower, "options ") then
-						local response = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"
+						local response = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: cph-submit, Content-Type, Authorization, *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"
 						client:write(response, function()
 							client:close()
 						end)
@@ -325,6 +325,10 @@ function M.start_receiving(mode, companion_port, notify_on_start, notify_on_rece
 	if notify_on_start then
 		utils.notify("ready to receive " .. mode .. ". Press the green plus button in your browser.", "INFO")
 	end
+end
+
+function M.is_receiving()
+	return rs ~= nil
 end
 
 ---------------- STORAGE UTILITIES ----------------
