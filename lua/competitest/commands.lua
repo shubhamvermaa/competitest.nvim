@@ -394,7 +394,14 @@ function M.submit_solution(custom_url)
 			M.receive("persistently")
 		end
 
-		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpen browser tab or use cph-submit extension to complete submission.", "INFO")
+		-- Automatically open problem URL in browser so cph-submit extension activates and submits
+		if vim.ui and vim.ui.open then
+			pcall(vim.ui.open, final_url)
+		else
+			pcall(vim.fn.jobstart, { "xdg-open", final_url })
+		end
+
+		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpening browser to complete submission...", "INFO")
 	end
 
 	if not url or url == "" then
