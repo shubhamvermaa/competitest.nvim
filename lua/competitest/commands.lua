@@ -391,7 +391,7 @@ function M.submit_solution(custom_url)
 		}
 
 		if not receive_module.receiver then
-			receive_module.receive("persistently")
+			M.receive("persistently")
 		end
 
 		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpen browser tab or use cph-submit extension to complete submission.", "INFO")
