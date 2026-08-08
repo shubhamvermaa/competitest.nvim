@@ -48,11 +48,15 @@ function Receiver:new(address, port, callback)
 		assert(client, "CompetiTest.nvim: Receiver:new, server:listen: client TCP socket creation failed")
 		server:accept(client)
 		local message = {} -- received string
+		local df = io.open("/tmp/receive_debug.log", "a")
+		if df then df:write("Connected!\n"); df:close() end
 		client:read_start(function(error, chunk)
 			assert(not error, error)
 			if chunk then
 				table.insert(message, chunk)
 				local raw_request = table.concat(message)
+				local df2 = io.open("/tmp/receive_debug.log", "a")
+				if df2 then df2:write("Received chunk: " .. tostring(chunk) .. "\n"); df2:close() end
 				local raw_req_lower = string.lower(raw_request)
 				if string.find(raw_req_lower, "\n\n") or string.find(raw_req_lower, "\r\n\r\n") then
 					client:read_stop()
@@ -60,7 +64,6 @@ function Receiver:new(address, port, callback)
 						local resp_body
 						if M.pending_submission and (os.time() - (M.pending_submission_time or 0) < 30) then
 							resp_body = vim.json.encode(M.pending_submission)
-							M.pending_submission = nil
 						else
 							resp_body = vim.json.encode({ empty = true })
 						end
