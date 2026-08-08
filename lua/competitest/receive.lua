@@ -57,9 +57,8 @@ function Receiver:new(address, port, callback)
 				local raw_request = table.concat(message)
 				if string.match(raw_request, "^GET /getSubmit") or string.match(raw_request, "^GET /get_submit") or string.match(raw_request, "^GET /submit") then
 					local resp_body
-					if M.pending_submission then
+					if M.pending_submission and (os.time() - (M.pending_submission_time or 0) < 30) then
 						resp_body = vim.json.encode(M.pending_submission)
-						M.pending_submission = nil
 					else
 						resp_body = vim.json.encode({ empty = true })
 					end

@@ -386,6 +386,7 @@ function M.submit_solution(custom_url)
 		prob_code = string.upper(prob_code)
 
 		local receive_module = require("competitest.receive")
+		receive_module.pending_submission_time = os.time()
 		receive_module.pending_submission = {
 			empty = false,
 			url = final_url,
