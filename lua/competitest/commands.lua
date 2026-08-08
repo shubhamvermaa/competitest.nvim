@@ -373,14 +373,16 @@ function M.submit_solution(custom_url)
 		end
 
 		local lang_map = {
-			cpp = "cpp",
-			c = "c",
-			py = "python",
-			python = "python",
-			java = "java",
-			rs = "rust",
+			cpp = 54,       -- GNU G++20 64-bit
+			c = 43,         -- GNU GCC C11
+			py = 31,        -- Python 3
+			python = 31,    -- Python 3
+			pypy = 41,      -- PyPy 3
+			java = 74,      -- Java 17
+			rs = 75,        -- Rust 2021
+			rust = 75,      -- Rust 2021
 		}
-		local lang = lang_map[fext] or "cpp"
+		local lang_id = lang_map[fext] or 54
 
 		local prob_code = string.match(final_url, "/problem/([%w_]+)") or string.match(final_url, "%d+[/%-_](%a+)") or "A"
 		prob_code = string.upper(prob_code)
@@ -389,47 +391,17 @@ function M.submit_solution(custom_url)
 		receive_module.pending_submission_time = os.time()
 		receive_module.pending_submission = {
 			empty = false,
+			problemName = prob_code,
 			url = final_url,
-			problemUrl = final_url,
-			problemCode = prob_code,
-			problem = prob_code,
-			problemIndex = prob_code,
 			sourceCode = source_code,
-			code = source_code,
-			languageId = lang,
-			language = lang,
+			languageId = lang_id,
 		}
 
 		if not receive_module.receiver then
 			M.receive("persistently")
 		end
 
-		local function get_submit_url(url_str)
-			if not url_str or url_str == "" then return url_str end
-			local contest_id, problem_id = string.match(url_str, "codeforces%.com/contest/(%d+)/problem/([%w_]+)")
-			if contest_id and problem_id then
-				return string.format("https://codeforces.com/contest/%s/submit", contest_id)
-			end
-			if string.find(url_str, "codeforces%.com/problemset/problem/") then
-				return "https://codeforces.com/problemset/submit"
-			end
-			local gym_id = string.match(url_str, "codeforces%.com/gym/(%d+)/problem/")
-			if gym_id then
-				return string.format("https://codeforces.com/gym/%s/submit", gym_id)
-			end
-			return url_str
-		end
-
-		local submit_url = get_submit_url(final_url)
-
-		-- Automatically open submit page URL in browser so cph-submit extension activates and submits
-		if vim.ui and vim.ui.open then
-			pcall(vim.ui.open, submit_url)
-		else
-			pcall(vim.fn.jobstart, { "xdg-open", submit_url })
-		end
-
-		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpening submit page in browser...", "INFO")
+		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nWaiting for CPH Submit browser extension to poll and submit...", "INFO")
 	end
 
 	if not url or url == "" then
