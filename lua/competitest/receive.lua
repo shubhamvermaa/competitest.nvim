@@ -308,6 +308,9 @@ function M.start_receiving(mode, companion_port, notify_on_start, notify_on_rece
 		tasks_collector:insert(task)
 	end)
 	if type(receiver_or_error) == "string" then
+		if string.find(receiver_or_error, "EADDRINUSE") then
+			return nil
+		end
 		return receiver_or_error
 	end
 	rs = {
