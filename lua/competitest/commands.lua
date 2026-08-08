@@ -351,7 +351,7 @@ function M.submit_solution(custom_url)
 	local url = custom_url
 	if not url or url == "" then
 		for _, line in ipairs(lines) do
-			local match = string.match(line, "https?://[^\s%)]+")
+			local match = string.match(line, "https?://[^%s%)]+")
 			if match then
 				url = match
 				break
