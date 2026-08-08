@@ -373,14 +373,14 @@ function M.submit_solution(custom_url)
 		end
 
 		local lang_map = {
-			cpp = "cpp.g++20",
-			c = "c.gcc11",
-			py = "python3",
-			python = "python3",
+			cpp = "cpp",
+			c = "c",
+			py = "python",
+			python = "python",
 			java = "java",
 			rs = "rust",
 		}
-		local lang = lang_map[fext] or "cpp.g++20"
+		local lang = lang_map[fext] or "cpp"
 
 		local prob_code = string.match(final_url, "/problem/([%w_]+)") or string.match(final_url, "%d+[/%-_](%a+)") or "A"
 		prob_code = string.upper(prob_code)

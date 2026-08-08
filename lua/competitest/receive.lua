@@ -52,33 +52,35 @@ function Receiver:new(address, port, callback)
 			assert(not error, error)
 			if chunk then
 				table.insert(message, chunk)
-			else
-				client:read_stop()
 				local raw_request = table.concat(message)
-				if string.match(raw_request, "^GET /getSubmit") or string.match(raw_request, "^GET /get_submit") or string.match(raw_request, "^GET /submit") then
-					local resp_body
-					if M.pending_submission and (os.time() - (M.pending_submission_time or 0) < 30) then
-						resp_body = vim.json.encode(M.pending_submission)
-					else
-						resp_body = vim.json.encode({ empty = true })
-					end
-					local response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nContent-Length: " .. #resp_body .. "\r\n\r\n" .. resp_body
-					luv.write(client, response, function()
-						client:close()
-					end)
-				elseif string.match(raw_request, "^OPTIONS ") then
-					local response = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nContent-Length: 0\r\n\r\n"
-					luv.write(client, response, function()
-						client:close()
-					end)
-				else
-					client:close()
-					local content = string.match(raw_request, "^.+\r\n(.+)$") -- last line, text after last \r\n
-					if content then
-						pcall(function()
-							local task = vim.json.decode(content)
-							callback(task)
+				local raw_req_lower = string.lower(raw_request)
+				if string.find(raw_req_lower, "\n\n") or string.find(raw_req_lower, "\r\n\r\n") then
+					client:read_stop()
+					if string.find(raw_req_lower, "getsubmit") or string.find(raw_req_lower, "get_submit") or string.find(raw_req_lower, "get %/submit") then
+						local resp_body
+						if M.pending_submission and (os.time() - (M.pending_submission_time or 0) < 30) then
+							resp_body = vim.json.encode(M.pending_submission)
+						else
+							resp_body = vim.json.encode({ empty = true })
+						end
+						local response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nConnection: close\r\nContent-Length: " .. #resp_body .. "\r\n\r\n" .. resp_body
+						client:write(response, function()
+							client:close()
 						end)
+					elseif string.find(raw_req_lower, "options ") then
+						local response = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"
+						client:write(response, function()
+							client:close()
+						end)
+					else
+						local content = string.match(raw_request, "^.+\r\n\r\n(.+)$") or string.match(raw_request, "^.+\n\n(.+)$") or string.match(raw_request, "^.+\r\n(.+)$")
+						client:close()
+						if content then
+							pcall(function()
+								local task = vim.json.decode(content)
+								callback(task)
+							end)
+						end
 					end
 				end
 			end
