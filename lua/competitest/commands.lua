@@ -382,12 +382,21 @@ function M.submit_solution(custom_url)
 		}
 		local lang = lang_map[fext] or "cpp.g++20"
 
+		local prob_code = string.match(final_url, "/problem/([%w_]+)") or string.match(final_url, "%d+[/%-_](%a+)") or "A"
+		prob_code = string.upper(prob_code)
+
 		local receive_module = require("competitest.receive")
 		receive_module.pending_submission = {
+			empty = false,
 			url = final_url,
 			problemUrl = final_url,
+			problemCode = prob_code,
+			problem = prob_code,
+			problemIndex = prob_code,
 			sourceCode = source_code,
+			code = source_code,
 			languageId = lang,
+			language = lang,
 		}
 
 		if not receive_module.receiver then
