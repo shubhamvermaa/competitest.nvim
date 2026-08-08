@@ -95,7 +95,7 @@ function M.edit_testcase(add_testcase, tcnum)
 	config.load_buffer_config(bufnr) -- reload buffer configuration since it may have been updated in the meantime
 	local tctbl = testcases.buf_get_testcases(bufnr)
 	if add_testcase then
-		tcnum = 0
+		tcnum = 1
 		while tctbl[tcnum] do
 			tcnum = tcnum + 1
 		end
@@ -256,6 +256,19 @@ function M.run_testcases(testcases_list, compile, only_show)
 	end
 	config.load_buffer_config(bufnr)
 	local tctbl = testcases.buf_get_testcases(bufnr)
+
+	local normalized_tctbl = {}
+	local keys = {}
+	for k in pairs(tctbl) do
+		if type(k) == "number" then
+			table.insert(keys, k)
+		end
+	end
+	table.sort(keys)
+	for i, k in ipairs(keys) do
+		normalized_tctbl[i] = tctbl[k]
+	end
+	tctbl = normalized_tctbl
 
 	if testcases_list then
 		---@type competitest.TcTable
