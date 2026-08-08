@@ -566,6 +566,7 @@ function RunnerUI:update_ui()
 
 			if self.windows.si and self.windows.si.winid and api.nvim_win_is_valid(self.windows.si.winid) then
 				pcall(function()
+					vim.wo[self.windows.si.winid].winbar = "%#CompetiTestRunning# TESTCASE %*"
 					local si_lines = data.stdin and #data.stdin or 0
 					local si_height = math.max(2, math.min(20, si_lines))
 					vim.wo[self.windows.si.winid].winfixheight = false
