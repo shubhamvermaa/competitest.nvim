@@ -77,6 +77,11 @@ function M.command(arguments)
 				M.receive(args[2])
 			end
 		end,
+		submit = function()
+			if check_subargs(0, 1) then
+				M.submit_solution(args[2])
+			end
+		end,
 	}
 
 	local sub = subcommands[args[1]]
@@ -331,6 +336,75 @@ function M.receive(mode)
 
 	if error then
 		utils.notify("receive: " .. error .. ".")
+	end
+end
+
+---Submit current solution via CPH Submit browser extension
+---@param custom_url string? problem URL or Codeforces problem ID
+function M.submit_solution(custom_url)
+	local bufnr = api.nvim_get_current_buf()
+	local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+	local source_code = table.concat(lines, "\n")
+	local fname = api.nvim_buf_get_name(bufnr)
+	local fext = vim.fn.fnamemodify(fname, ":e")
+
+	local url = custom_url
+	if not url or url == "" then
+		for _, line in ipairs(lines) do
+			local match = string.match(line, "https?://[^\s%)]+")
+			if match then
+				url = match
+				break
+			end
+		end
+	end
+
+	local function queue_submission(final_url)
+		if not final_url or final_url == "" then
+			utils.notify("Submit canceled: Problem URL is required.", "WARN")
+			return
+		end
+
+		if not string.match(final_url, "^https?://") then
+			local contest, prob = string.match(final_url, "^(%d+)[/%-_]?(%a+)$")
+			if contest and prob then
+				final_url = string.format("https://codeforces.com/contest/%s/problem/%s", contest, string.upper(prob))
+			end
+		end
+
+		local lang_map = {
+			cpp = "cpp.g++20",
+			c = "c.gcc11",
+			py = "python3",
+			python = "python3",
+			java = "java",
+			rs = "rust",
+		}
+		local lang = lang_map[fext] or "cpp.g++20"
+
+		local receive_module = require("competitest.receive")
+		receive_module.pending_submission = {
+			url = final_url,
+			problemUrl = final_url,
+			sourceCode = source_code,
+			languageId = lang,
+		}
+
+		if not receive_module.receiver then
+			receive_module.receive("persistently")
+		end
+
+		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpen browser tab or use cph-submit extension to complete submission.", "INFO")
+	end
+
+	if not url or url == "" then
+		vim.ui.input({ prompt = "Enter Problem URL or Codeforces ID (e.g. 1900/C): " }, function(input)
+			if input then
+				queue_submission(vim.trim(input))
+			end
+		end)
+	else
+		queue_submission(url)
 	end
 end
 

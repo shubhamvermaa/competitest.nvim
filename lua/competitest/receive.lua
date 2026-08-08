@@ -54,10 +54,34 @@ function Receiver:new(address, port, callback)
 				table.insert(message, chunk)
 			else
 				client:read_stop()
-				client:close()
-				local content = string.match(table.concat(message), "^.+\r\n(.+)$") -- last line, text after last \r\n
-				local task = vim.json.decode(content)
-				callback(task)
+				local raw_request = table.concat(message)
+				if string.match(raw_request, "^GET /getSubmit") or string.match(raw_request, "^GET /get_submit") or string.match(raw_request, "^GET /submit") then
+					local resp_body
+					if M.pending_submission then
+						resp_body = vim.json.encode(M.pending_submission)
+						M.pending_submission = nil
+					else
+						resp_body = vim.json.encode({ empty = true })
+					end
+					local response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nContent-Length: " .. #resp_body .. "\r\n\r\n" .. resp_body
+					luv.write(client, response, function()
+						client:close()
+					end)
+				elseif string.match(raw_request, "^OPTIONS ") then
+					local response = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nContent-Length: 0\r\n\r\n"
+					luv.write(client, response, function()
+						client:close()
+					end)
+				else
+					client:close()
+					local content = string.match(raw_request, "^.+\r\n(.+)$") -- last line, text after last \r\n
+					if content then
+						pcall(function()
+							local task = vim.json.decode(content)
+							callback(task)
+						end)
+					end
+				end
 			end
 		end)
 	end)

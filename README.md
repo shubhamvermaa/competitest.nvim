@@ -62,6 +62,7 @@ return {
       { "<leader>te", "<cmd>CompetiTest edit_testcase<cr>", desc = "Edit Test Case" },
       { "<leader>td", "<cmd>CompetiTest delete_testcase<cr>", desc = "Delete Test Case" },
       { "<leader>tu", "<cmd>CompetiTest show_ui<cr>", desc = "Show Test UI" },
+      { "<leader>ts", "<cmd>CompetiTest submit<cr>", desc = "Submit Solution via CPH Submit" },
     },
     opts = {
       save_current_file = true,
