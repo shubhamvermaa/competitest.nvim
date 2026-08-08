@@ -394,14 +394,32 @@ function M.submit_solution(custom_url)
 			M.receive("persistently")
 		end
 
-		-- Automatically open problem URL in browser so cph-submit extension activates and submits
-		if vim.ui and vim.ui.open then
-			pcall(vim.ui.open, final_url)
-		else
-			pcall(vim.fn.jobstart, { "xdg-open", final_url })
+		local function get_submit_url(url_str)
+			if not url_str or url_str == "" then return url_str end
+			local contest_id, problem_id = string.match(url_str, "codeforces%.com/contest/(%d+)/problem/([%w_]+)")
+			if contest_id and problem_id then
+				return string.format("https://codeforces.com/contest/%s/submit", contest_id)
+			end
+			if string.find(url_str, "codeforces%.com/problemset/problem/") then
+				return "https://codeforces.com/problemset/submit"
+			end
+			local gym_id = string.match(url_str, "codeforces%.com/gym/(%d+)/problem/")
+			if gym_id then
+				return string.format("https://codeforces.com/gym/%s/submit", gym_id)
+			end
+			return url_str
 		end
 
-		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpening browser to complete submission...", "INFO")
+		local submit_url = get_submit_url(final_url)
+
+		-- Automatically open submit page URL in browser so cph-submit extension activates and submits
+		if vim.ui and vim.ui.open then
+			pcall(vim.ui.open, submit_url)
+		else
+			pcall(vim.fn.jobstart, { "xdg-open", submit_url })
+		end
+
+		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpening submit page in browser...", "INFO")
 	end
 
 	if not url or url == "" then
