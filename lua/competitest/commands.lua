@@ -421,16 +421,7 @@ function M.submit_solution(custom_url)
 			return url_str
 		end
 
-		local submit_url = get_submit_url(final_url)
-
-		-- Automatically open submit page URL in browser so Firefox wakes up cph-submit extension
-		if vim.ui and vim.ui.open then
-			pcall(vim.ui.open, submit_url)
-		else
-			pcall(vim.fn.jobstart, { "xdg-open", submit_url })
-		end
-
-		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nOpening submit page in browser...", "INFO")
+		utils.notify("CPH Submit: Solution queued for " .. final_url .. "!\nWaiting for CPH Submit extension to process submission...", "INFO")
 	end
 
 	if not url or url == "" then
