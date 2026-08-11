@@ -350,12 +350,26 @@ function M.submit_solution(custom_url)
 
 	local url = custom_url
 	if not url or url == "" then
+		-- 1. Look for explicit URL comment in buffer
 		for _, line in ipairs(lines) do
 			local match = string.match(line, "https?://[^%s%)]+")
 			if match then
 				url = match
 				break
 			end
+		end
+	end
+
+	if not url or url == "" then
+		-- 2. Infer from file directory or filename (e.g. /1900/C.cpp, /1900/C/sol.cpp, 1900C.cpp)
+		local parent_dir = vim.fn.fnamemodify(fname, ":h:t")
+		local stem = vim.fn.fnamemodify(fname, ":t:r")
+		local contest, prob = string.match(parent_dir, "^(%d+)$"), string.match(stem, "^(%a+)$")
+		if not (contest and prob) then
+			contest, prob = string.match(stem, "^(%d+)[_%-]?([%a]%d*)$")
+		end
+		if contest and prob then
+			url = string.format("https://codeforces.com/contest/%s/problem/%s", contest, string.upper(prob))
 		end
 	end
 
