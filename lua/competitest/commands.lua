@@ -373,7 +373,7 @@ function M.submit_solution(custom_url)
 		end
 
 		local lang_map = {
-			cpp = 54,       -- GNU G++20 64-bit
+			cpp = 89,       -- GNU G++23 64-bit (GCC 14.2, C++20/C++23)
 			c = 43,         -- GNU GCC C11
 			py = 31,        -- Python 3
 			python = 31,    -- Python 3
@@ -382,7 +382,7 @@ function M.submit_solution(custom_url)
 			rs = 75,        -- Rust 2021
 			rust = 75,      -- Rust 2021
 		}
-		local lang_id = lang_map[fext] or 54
+		local lang_id = lang_map[fext] or 89
 
 		local prob_code = string.match(final_url, "/problem/([%w_]+)") or string.match(final_url, "%d+[/%-_](%a+)") or "A"
 		prob_code = string.upper(prob_code)
