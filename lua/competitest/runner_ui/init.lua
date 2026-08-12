@@ -529,7 +529,7 @@ function RunnerUI:update_ui()
 			local function set_buf_content(bufnr, content)
 				vim.bo[bufnr].modifiable = true
 				api.nvim_buf_set_lines(bufnr, 0, -1, false, content or {})
-				vim.bo[bufnr].modifiable = false
+				vim.bo[bufnr].modifiable = true
 			end
 
 			local function is_empty_lines(lines)

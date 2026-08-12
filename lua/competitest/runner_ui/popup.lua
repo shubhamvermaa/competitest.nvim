@@ -72,7 +72,7 @@ function M.init_ui(windows, config)
 		},
 		relative = "editor",
 		buf_options = {
-			modifiable = false,
+			modifiable = true,
 			readonly = false,
 			filetype = "CompetiTest",
 		},

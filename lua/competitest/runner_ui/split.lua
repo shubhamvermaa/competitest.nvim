@@ -11,7 +11,7 @@ function M.init_ui(windows, config, init_winid)
 		relative = { type = "win" },
 		size = "50%",
 		buf_options = {
-			modifiable = false,
+			modifiable = true,
 			readonly = false,
 			filetype = "CompetiTest",
 		},
