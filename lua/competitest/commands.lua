@@ -253,6 +253,30 @@ function M.remove_runner(bufnr)
 			pcall(function() r.ui:delete() end)
 		end
 		M.runners[bufnr] = nil
+
+		-- If only orphan/nofile/CompetiTest windows remain, close them cleanly
+		pcall(function()
+			local remaining_wins = api.nvim_tabpage_list_wins(0)
+			local has_normal_win = false
+			for _, w in ipairs(remaining_wins) do
+				if api.nvim_win_is_valid(w) then
+					local b = api.nvim_win_get_buf(w)
+					local ft = vim.bo[b].filetype
+					local bt = vim.bo[b].buftype
+					if ft ~= "CompetiTest" and bt ~= "nofile" and bt ~= "prompt" and bt ~= "quickfix" then
+						has_normal_win = true
+						break
+					end
+				end
+			end
+			if not has_normal_win and #remaining_wins > 0 then
+				for _, w in ipairs(remaining_wins) do
+					if api.nvim_win_is_valid(w) then
+						pcall(api.nvim_win_close, w, true)
+					end
+				end
+			end
+		end)
 	end
 end
 
@@ -319,7 +343,9 @@ function M.run_testcases(testcases_list, compile, only_show)
 			group = augroup,
 			buffer = bufnr,
 			callback = function()
-				M.remove_runner(bufnr)
+				vim.schedule(function()
+					M.remove_runner(bufnr)
+				end)
 			end,
 		})
 		api.nvim_create_autocmd("WinClosed", {
@@ -327,10 +353,12 @@ function M.run_testcases(testcases_list, compile, only_show)
 			pattern = "*",
 			callback = function(args)
 				local closed_win = tonumber(args.match)
-				local wins = vim.fn.win_findbuf(bufnr)
-				if #wins == 0 or (#wins == 1 and wins[1] == closed_win) then
-					M.remove_runner(bufnr)
-				end
+				vim.schedule(function()
+					local wins = vim.fn.win_findbuf(bufnr)
+					if #wins == 0 or (#wins == 1 and wins[1] == closed_win) then
+						M.remove_runner(bufnr)
+					end
+				end)
 			end,
 		})
 		api.nvim_create_autocmd({ "BufHidden", "BufLeave" }, {
