@@ -242,10 +242,18 @@ end
 ---@type table<integer, competitest.TCRunner>
 M.runners = {}
 
----Unload a runner (called on `BufUnload`)
+---Unload a runner and clean up its UI windows
 ---@param bufnr integer
 function M.remove_runner(bufnr)
-	M.runners[bufnr] = nil
+	bufnr = tonumber(bufnr)
+	if bufnr and M.runners[bufnr] then
+		local r = M.runners[bufnr]
+		pcall(function() r:kill_all_processes() end)
+		if r.ui then
+			pcall(function() r.ui:delete() end)
+		end
+		M.runners[bufnr] = nil
+	end
 end
 
 ---Start testcases runner
@@ -293,13 +301,50 @@ function M.run_testcases(testcases_list, compile, only_show)
 		tctbl[1] = { input = "", output = nil }
 	end
 
+	-- Close runner UIs of any other buffers so only current problem UI is shown
+	for other_buf, runner in pairs(M.runners) do
+		if other_buf ~= bufnr and runner.ui and runner.ui.ui_visible then
+			pcall(function() runner.ui:delete() end)
+		end
+	end
+
 	if not M.runners[bufnr] then -- no runner is associated to buffer
-		M.runners[bufnr] = require("competitest.runner"):new(api.nvim_get_current_buf())
+		M.runners[bufnr] = require("competitest.runner"):new(bufnr)
 		if not M.runners[bufnr] then -- an error occurred
 			return
 		end
-		-- remove runner data when buffer is unloaded
-		api.nvim_command("autocmd BufUnload <buffer=" .. bufnr .. "> lua require('competitest.commands').remove_runner(vim.fn.expand('<abuf>'))")
+
+		local augroup = api.nvim_create_augroup("CompetiTestRunner_" .. bufnr, { clear = true })
+		api.nvim_create_autocmd({ "BufUnload", "BufDelete", "BufWipeout" }, {
+			group = augroup,
+			buffer = bufnr,
+			callback = function()
+				M.remove_runner(bufnr)
+			end,
+		})
+		api.nvim_create_autocmd("WinClosed", {
+			group = augroup,
+			pattern = "*",
+			callback = function(args)
+				local closed_win = tonumber(args.match)
+				local wins = vim.fn.win_findbuf(bufnr)
+				if #wins == 0 or (#wins == 1 and wins[1] == closed_win) then
+					M.remove_runner(bufnr)
+				end
+			end,
+		})
+		api.nvim_create_autocmd({ "BufHidden", "BufLeave" }, {
+			group = augroup,
+			buffer = bufnr,
+			callback = function()
+				vim.schedule(function()
+					local wins = vim.fn.win_findbuf(bufnr)
+					if #wins == 0 and M.runners[bufnr] and M.runners[bufnr].ui and M.runners[bufnr].ui.ui_visible then
+						pcall(function() M.runners[bufnr].ui:delete() end)
+					end
+				end)
+			end,
+		})
 	end
 	local r = M.runners[bufnr] -- current runner
 	if not only_show then
