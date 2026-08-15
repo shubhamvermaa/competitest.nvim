@@ -550,54 +550,84 @@ function RunnerUI:update_ui()
 			set_buf_content(self.windows.si.bufnr, data.stdin)
 			set_buf_content(self.windows.se.bufnr, err_lines)
 
-			if self.windows.se then
-				local has_error = (data.exit_code and data.exit_code ~= 0) or not is_empty_lines(err_lines)
-				if has_error then
-					pcall(function()
-						self.windows.se:show()
-						if self.windows.se.winid and api.nvim_win_is_valid(self.windows.se.winid) then
-							vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong# ERRORS %*"
-						end
-					end)
-				else
-					pcall(function() self.windows.se:hide() end)
+			local is_compilation_error = false
+			if self.runner.tcdata[1] and self.runner.tcdata[1].tcnum == "Compile" then
+				if self.runner.tcdata[1].exit_code and self.runner.tcdata[1].exit_code ~= 0 then
+					is_compilation_error = true
 				end
 			end
 
-			if self.windows.si and self.windows.si.winid and api.nvim_win_is_valid(self.windows.si.winid) then
-				pcall(function()
-					vim.wo[self.windows.si.winid].winbar = "%#CompetiTestRunning# TESTCASE %*"
-					local si_lines = data.stdin and #data.stdin or 0
-					local si_height = math.max(2, math.min(20, si_lines))
-					vim.wo[self.windows.si.winid].winfixheight = false
-					api.nvim_win_set_height(self.windows.si.winid, si_height)
-					vim.wo[self.windows.si.winid].winfixheight = true
-				end)
-			end
-
-			if self.windows.so and self.windows.so.winid and api.nvim_win_is_valid(self.windows.so.winid) then
-				pcall(function()
-					vim.wo[self.windows.so.winid].winbar = "%#CompetiTestDone# OUTPUT %*"
-				end)
-			end
-
-			if self.windows.eo and self.windows.eo.winid and api.nvim_win_is_valid(self.windows.eo.winid) then
-				pcall(function()
-					if is_empty_lines(data.expout) then
-						vim.wo[self.windows.eo.winid].winbar = "%#CompetiTestRunning# EXP %*"
-						vim.wo[self.windows.eo.winid].winfixwidth = false
-						api.nvim_win_set_width(self.windows.eo.winid, 8)
-						vim.wo[self.windows.eo.winid].winfixwidth = true
-					else
-						vim.wo[self.windows.eo.winid].winbar = "%#CompetiTestRunning# EXPECTED %*"
-						vim.wo[self.windows.eo.winid].winfixwidth = false
-						if self.windows.so and self.windows.so.winid and api.nvim_win_is_valid(self.windows.so.winid) then
-							local total_w = api.nvim_win_get_width(self.windows.so.winid) + api.nvim_win_get_width(self.windows.eo.winid)
-							local half_w = math.floor(total_w / 2)
-							api.nvim_win_set_width(self.windows.eo.winid, half_w)
+			if is_compilation_error then
+				if self.windows.si then pcall(function() self.windows.si:hide() end) end
+				if self.windows.so then pcall(function() self.windows.so:hide() end) end
+				if self.windows.eo then pcall(function() self.windows.eo:hide() end) end
+				if self.windows.se then
+					pcall(function()
+						self.windows.se:show()
+						if self.windows.se.winid and api.nvim_win_is_valid(self.windows.se.winid) then
+							vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong# COMPILATION ERRORS %*"
 						end
+					end)
+				end
+			else
+				if self.windows.si then
+					pcall(function()
+						self.windows.si:show()
+						if self.windows.si.winid and api.nvim_win_is_valid(self.windows.si.winid) then
+							vim.wo[self.windows.si.winid].winbar = "%#CompetiTestRunning# TESTCASE %*"
+							local si_lines = data.stdin and #data.stdin or 0
+							local si_height = math.max(2, math.min(20, si_lines))
+							vim.wo[self.windows.si.winid].winfixheight = false
+							api.nvim_win_set_height(self.windows.si.winid, si_height)
+							vim.wo[self.windows.si.winid].winfixheight = true
+						end
+					end)
+				end
+
+				if self.windows.so then
+					pcall(function()
+						self.windows.so:show()
+						if self.windows.so.winid and api.nvim_win_is_valid(self.windows.so.winid) then
+							vim.wo[self.windows.so.winid].winbar = "%#CompetiTestDone# OUTPUT %*"
+						end
+					end)
+				end
+
+				if self.windows.eo then
+					pcall(function()
+						self.windows.eo:show()
+						if self.windows.eo.winid and api.nvim_win_is_valid(self.windows.eo.winid) then
+							if is_empty_lines(data.expout) then
+								vim.wo[self.windows.eo.winid].winbar = "%#CompetiTestRunning# EXP %*"
+								vim.wo[self.windows.eo.winid].winfixwidth = false
+								api.nvim_win_set_width(self.windows.eo.winid, 8)
+								vim.wo[self.windows.eo.winid].winfixwidth = true
+							else
+								vim.wo[self.windows.eo.winid].winbar = "%#CompetiTestRunning# EXPECTED %*"
+								vim.wo[self.windows.eo.winid].winfixwidth = false
+								if self.windows.so and self.windows.so.winid and api.nvim_win_is_valid(self.windows.so.winid) then
+									local total_w = api.nvim_win_get_width(self.windows.so.winid) + api.nvim_win_get_width(self.windows.eo.winid)
+									local half_w = math.floor(total_w / 2)
+									api.nvim_win_set_width(self.windows.eo.winid, half_w)
+								end
+							end
+						end
+					end)
+				end
+
+				if self.windows.se then
+					local has_error = (data.exit_code and data.exit_code ~= 0) or not is_empty_lines(err_lines)
+					if has_error then
+						pcall(function()
+							self.windows.se:show()
+							if self.windows.se.winid and api.nvim_win_is_valid(self.windows.se.winid) then
+								vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong# ERRORS %*"
+							end
+						end)
+					else
+						pcall(function() self.windows.se:hide() end)
 					end
-				end)
+				end
 			end
 		end
 
