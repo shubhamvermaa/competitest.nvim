@@ -339,6 +339,15 @@ function M.run_testcases(testcases_list, compile, only_show)
 		end
 
 		local augroup = api.nvim_create_augroup("CompetiTestRunner_" .. bufnr, { clear = true })
+		api.nvim_create_autocmd("QuitPre", {
+			group = augroup,
+			buffer = bufnr,
+			callback = function()
+				if M.runners[bufnr] and M.runners[bufnr].ui and M.runners[bufnr].ui.ui_visible then
+					pcall(function() M.runners[bufnr].ui:delete() end)
+				end
+			end,
+		})
 		api.nvim_create_autocmd({ "BufUnload", "BufDelete", "BufWipeout" }, {
 			group = augroup,
 			buffer = bufnr,
