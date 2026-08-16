@@ -445,48 +445,46 @@ end
 ---@param task competitest.CCTask received task
 ---@param cfg competitest.Config current CompetiTest configuration
 function storage_utils.store_received_task_config(filepath, confirm_overwriting, task, cfg)
-	if confirm_overwriting and utils.does_file_exist(filepath) then
-		local choice = vim.fn.confirm('Do you want to overwrite "' .. filepath .. '"?', "Yes\nNo")
-		if choice == 0 or choice == 2 then -- user pressed <esc> or chose "No"
-			return
-		end
-	end
-
-	local file_extension = vim.fn.fnamemodify(filepath, ":e")
-	---Template file absolute path
-	---@type string?
-	local template_file
-	if type(cfg.template_file) == "string" then -- string with CompetiTest file-format modifiers
-		---@diagnostic disable-next-line: param-type-mismatch
-		template_file = utils.eval_string(filepath, cfg.template_file)
-	elseif type(cfg.template_file) == "table" then -- table with paths to template files
-		template_file = cfg.template_file[file_extension]
-	end
-
-	if template_file then
-		template_file = string.gsub(template_file, "^%~", luv.os_homedir()) -- expand tilde into home directory
-		if not utils.does_file_exist(template_file) then
-			if type(cfg.template_file) == "table" then -- notify file absence when path is explicitly set
-				utils.notify('template file "' .. template_file .. "\" doesn't exist.", "WARN")
-			end
-			template_file = nil
-		end
-	end
-
 	local file_directory = vim.fn.fnamemodify(filepath, ":h")
-	-- if template file exists then template_file is a string
-	if template_file then
-		if cfg.evaluate_template_modifiers then
-			local str = utils.load_file_as_string(template_file)
-			assert(str, "CompetiTest.nvim: store_received_task_config: cannot load '" .. template_file .. "'")
-			local evaluated_str = storage_utils.eval_receive_modifiers(str, task, file_extension, false, cfg.date_format)
-			utils.write_string_on_file(filepath, evaluated_str or "")
-		else
-			utils.create_directory(file_directory)
-			luv.fs_copyfile(template_file, filepath)
+
+	-- Only create/write the source file (e.g. A.cpp) if it doesn't already exist.
+	-- If it already exists, keep the existing solution code safe and untouched!
+	if not utils.does_file_exist(filepath) then
+		local file_extension = vim.fn.fnamemodify(filepath, ":e")
+		---Template file absolute path
+		---@type string?
+		local template_file
+		if type(cfg.template_file) == "string" then -- string with CompetiTest file-format modifiers
+			---@diagnostic disable-next-line: param-type-mismatch
+			template_file = utils.eval_string(filepath, cfg.template_file)
+		elseif type(cfg.template_file) == "table" then -- table with paths to template files
+			template_file = cfg.template_file[file_extension]
 		end
-	else
-		utils.write_string_on_file(filepath, "")
+
+		if template_file then
+			template_file = string.gsub(template_file, "^%~", luv.os_homedir()) -- expand tilde into home directory
+			if not utils.does_file_exist(template_file) then
+				if type(cfg.template_file) == "table" then -- notify file absence when path is explicitly set
+					utils.notify('template file "' .. template_file .. "\" doesn't exist.", "WARN")
+				end
+				template_file = nil
+			end
+		end
+
+		-- if template file exists then template_file is a string
+		if template_file then
+			if cfg.evaluate_template_modifiers then
+				local str = utils.load_file_as_string(template_file)
+				assert(str, "CompetiTest.nvim: store_received_task_config: cannot load '" .. template_file .. "'")
+				local evaluated_str = storage_utils.eval_receive_modifiers(str, task, file_extension, false, cfg.date_format)
+				utils.write_string_on_file(filepath, evaluated_str or "")
+			else
+				utils.create_directory(file_directory)
+				luv.fs_copyfile(template_file, filepath)
+			end
+		else
+			utils.write_string_on_file(filepath, "")
+		end
 	end
 
 	---@type competitest.TcTable
