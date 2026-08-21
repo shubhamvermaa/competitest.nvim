@@ -422,6 +422,22 @@ function RunnerUI:show_viewer_popup(window_name)
 		self.windows.vw:mount()
 		self.viewer_initialized = true
 		self.viewer_visible = true
+
+		local function close_viewer()
+			if self.viewer_visible and self.windows.vw then
+				self.windows.vw:hide()
+				self.viewer_visible = false
+				if self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
+					pcall(api.nvim_set_current_win, self.restore_winid)
+				elseif self.windows.tc and self.windows.tc.winid and api.nvim_win_is_valid(self.windows.tc.winid) then
+					pcall(api.nvim_set_current_win, self.windows.tc.winid)
+				end
+			end
+		end
+
+		self.windows.vw:map("n", "q", close_viewer, { noremap = true })
+		self.windows.vw:map("n", "<esc>", close_viewer, { noremap = true })
+		self.windows.vw:map("n", "<C-c>", close_viewer, { noremap = true })
 	elseif not self.viewer_visible then
 		self.windows.vw.bufnr = get_viewer_buffer()
 		self.windows.vw:show()
@@ -480,7 +496,8 @@ function RunnerUI:update_ui()
 					then
 						self.update_testcase = 1
 						self.update_details = true
-						self.make_viewer_visible = false
+						self.viewer_content = "se"
+						self.make_viewer_visible = (self.runner.config.runner_ui.viewer.open_when_compilation_fails ~= false)
 						self.latest_compilation_timestamp = data.process.starting_time
 					end
 				end
@@ -625,7 +642,7 @@ function RunnerUI:update_ui()
 
 		if self.make_viewer_visible then
 			self.make_viewer_visible = false
-			self:show_viewer_popup()
+			self:show_viewer_popup("se")
 		end
 
 		if self.keep_focus and self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
