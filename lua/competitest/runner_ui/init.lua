@@ -2,6 +2,28 @@ local api = vim.api
 local nui_event = require("nui.utils.autocmd").event
 local utils = require("competitest.utils")
 
+_G.CompetiTestCopyErrors = function(minwid, clicks, button, mods)
+	local err_text = nil
+	for _, runner in pairs(require("competitest.commands").runners) do
+		if runner.ui and runner.ui.windows and runner.ui.windows.se and runner.ui.windows.se.bufnr then
+			local bufnr = runner.ui.windows.se.bufnr
+			if api.nvim_buf_is_valid(bufnr) then
+				local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+				err_text = table.concat(lines, "\n")
+				break
+			end
+		end
+	end
+
+	if err_text and err_text ~= "" then
+		vim.fn.setreg("+", err_text)
+		vim.fn.setreg('"', err_text)
+		utils.notify("Errors copied to clipboard! (📋 " .. #vim.split(err_text, "\n") .. " lines)", "INFO")
+	else
+		utils.notify("No error content to copy.", "WARN")
+	end
+end
+
 ---@alias competitest.RunnerUI.textual_window # runner UI window showing textual data
 ---| "si" standard input window
 ---| "so" standard output window
@@ -556,7 +578,7 @@ function RunnerUI:update_ui()
 					pcall(function()
 						self.windows.se:show()
 						if self.windows.se.winid and api.nvim_win_is_valid(self.windows.se.winid) then
-							vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong# ERRORS %*"
+							vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong# ERRORS %*%=%@v:lua.CompetiTestCopyErrors@%#CompetiTestDone# [📋 Copy] %T%*"
 						end
 					end)
 				else
