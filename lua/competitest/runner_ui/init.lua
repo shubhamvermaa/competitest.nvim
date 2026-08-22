@@ -595,7 +595,7 @@ function RunnerUI:update_ui()
 					pcall(function()
 						self.windows.se:show()
 						if self.windows.se.winid and api.nvim_win_is_valid(self.windows.se.winid) then
-							vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong# ERRORS %*%=%@v:lua.CompetiTestCopyErrors@%#CompetiTestDone# [📋 Copy] %T%*"
+							vim.wo[self.windows.se.winid].winbar = "%@v:lua.CompetiTestCopyErrors@%#CompetiTestWrong# 📋 ERRORS %T%*"
 						end
 					end)
 				else
