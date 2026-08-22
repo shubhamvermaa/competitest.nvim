@@ -430,11 +430,15 @@ function RunnerUI:show_viewer_popup(window_name)
 			win_options = {
 				number = self.runner.config.runner_ui.viewer.show_nu,
 				relativenumber = self.runner.config.runner_ui.viewer.show_rnu,
+				winbar = "",
 			},
 		}
 
 		self.windows.vw = require("nui.popup")(viewer_popup_settings)
 		self.windows.vw:mount()
+		if self.windows.vw.winid and api.nvim_win_is_valid(self.windows.vw.winid) then
+			vim.wo[self.windows.vw.winid].winbar = ""
+		end
 		self.viewer_initialized = true
 		self.viewer_visible = true
 
@@ -457,6 +461,9 @@ function RunnerUI:show_viewer_popup(window_name)
 		self.windows.vw.bufnr = get_viewer_buffer()
 		self.windows.vw:show()
 		self.windows.vw.border:set_text("top", get_viewer_popup_text(), "center")
+		if self.windows.vw.winid and api.nvim_win_is_valid(self.windows.vw.winid) then
+			vim.wo[self.windows.vw.winid].winbar = ""
+		end
 		self.viewer_visible = true
 	end
 	api.nvim_set_current_win(self.windows.vw.winid)
