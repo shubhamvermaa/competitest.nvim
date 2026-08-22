@@ -526,7 +526,14 @@ function storage_utils.store_single_problem(task, cfg, finished)
 		local local_cfg = config.load_local_config_and_extend(vim.fn.fnamemodify(filepath, ":h"))
 		storage_utils.store_received_task_config(filepath, true, task, local_cfg)
 		if local_cfg.open_received_problems then
-			vim.api.nvim_command("edit " .. vim.fn.fnameescape(filepath))
+			local bufnr = vim.fn.bufnr(filepath)
+			if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
+				pcall(vim.api.nvim_set_current_buf, bufnr)
+			else
+				pcall(function()
+					vim.api.nvim_command("edit " .. vim.fn.fnameescape(filepath))
+				end)
+			end
 		end
 		if finished then
 			finished()
@@ -564,7 +571,14 @@ function storage_utils.store_contest(tasks, cfg, finished)
 						local filepath = directory .. "/" .. problem_path
 						storage_utils.store_received_task_config(filepath, true, task, local_cfg)
 						if local_cfg.open_received_contests then
-							vim.api.nvim_command("edit " .. vim.fn.fnameescape(filepath))
+							local bufnr = vim.fn.bufnr(filepath)
+							if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
+								pcall(vim.api.nvim_set_current_buf, bufnr)
+							else
+								pcall(function()
+									vim.api.nvim_command("edit " .. vim.fn.fnameescape(filepath))
+								end)
+							end
 						end
 					else
 						utils.notify("'received_contests_problems_path' evaluation failed for task '" .. task.name .. "'")
