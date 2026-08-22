@@ -24,6 +24,15 @@ _G.CompetiTestCopyErrors = function(minwid, clicks, button, mods)
 	end
 end
 
+_G.CompetiTestOpenErrorPopup = function(minwid, clicks, button, mods)
+	for _, runner in pairs(require("competitest.commands").runners) do
+		if runner.ui and runner.ui.ui_visible then
+			runner.ui:show_viewer_popup("se")
+			return
+		end
+	end
+end
+
 ---@alias competitest.RunnerUI.textual_window # runner UI window showing textual data
 ---| "si" standard input window
 ---| "so" standard output window
@@ -595,7 +604,7 @@ function RunnerUI:update_ui()
 					pcall(function()
 						self.windows.se:show()
 						if self.windows.se.winid and api.nvim_win_is_valid(self.windows.se.winid) then
-							vim.wo[self.windows.se.winid].winbar = "%@v:lua.CompetiTestCopyErrors@%#CompetiTestWrong# 📋 ERRORS %T%*"
+							vim.wo[self.windows.se.winid].winbar = "%#CompetiTestWrong#%@v:lua.CompetiTestCopyErrors@ 📋 %T%@v:lua.CompetiTestOpenErrorPopup@ERRORS %T%*"
 						end
 					end)
 				else
