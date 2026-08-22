@@ -147,8 +147,8 @@ local default_config = {
 			close = { "q", "Q" },
 		},
 		viewer = {
-			width = 0.5,
-			height = 0.5,
+			width = 0.85,
+			height = 0.85,
 			show_nu = true,
 			show_rnu = false,
 			open_when_compilation_fails = true,
