@@ -389,14 +389,20 @@ function RunnerUI:show_viewer_popup(window_name)
 		return self.windows[self.viewer_content].bufnr
 	end
 
-	local function get_viewer_popup_title()
-		return " " .. api.nvim_buf_get_var(get_viewer_buffer(), "competitest_title") .. " "
+	local function get_viewer_popup_text()
+		local NuiText = require("nui.text")
+		if self.viewer_content == "se" then
+			return NuiText(" ERRORS ", "CompetiTestWrong")
+		else
+			local title = " " .. api.nvim_buf_get_var(get_viewer_buffer(), "competitest_title") .. " "
+			return NuiText(title, "CompetiTestRunning")
+		end
 	end
 
 	if window_name then
 		self.viewer_content = window_name
 		if self.viewer_visible then
-			self.windows.vw.border:set_text("top", get_viewer_popup_title(), "center")
+			self.windows.vw.border:set_text("top", get_viewer_popup_text(), "center")
 			api.nvim_win_set_buf(self.windows.vw.winid, get_viewer_buffer())
 		end
 	end
@@ -411,7 +417,7 @@ function RunnerUI:show_viewer_popup(window_name)
 				style = self.runner.config.floating_border,
 				highlight = self.runner.config.floating_border_highlight,
 				text = {
-					top = get_viewer_popup_title(),
+					top = get_viewer_popup_text(),
 					top_align = "center",
 				},
 			},
@@ -450,7 +456,7 @@ function RunnerUI:show_viewer_popup(window_name)
 	elseif not self.viewer_visible then
 		self.windows.vw.bufnr = get_viewer_buffer()
 		self.windows.vw:show()
-		self.windows.vw.border:set_text("top", get_viewer_popup_title(), "center")
+		self.windows.vw.border:set_text("top", get_viewer_popup_text(), "center")
 		self.viewer_visible = true
 	end
 	api.nvim_set_current_win(self.windows.vw.winid)
