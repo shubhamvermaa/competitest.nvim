@@ -660,8 +660,10 @@ function RunnerUI:update_ui()
 			self:show_viewer_popup("se")
 		end
 
-		if self.keep_focus and self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
+		if not self.viewer_visible and self.keep_focus and self.restore_winid and api.nvim_win_is_valid(self.restore_winid) then
 			pcall(api.nvim_set_current_win, self.restore_winid)
+		elseif self.viewer_visible and self.windows.vw and self.windows.vw.winid and api.nvim_win_is_valid(self.windows.vw.winid) then
+			pcall(api.nvim_set_current_win, self.windows.vw.winid)
 		end
 	end)
 end
