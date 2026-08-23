@@ -125,6 +125,21 @@ function M.editor(bufnr, tcnum, input_content, output_content, callback, restore
 	api.nvim_buf_set_name(editor.input_popup.bufnr, "CompetiTestEditInput")
 	editor.ui_visible = true
 
+	_G.CompetiTestSaveAndCloseEditor = function(minwid, clicks, button, mods)
+		if editor.ui_visible then
+			send_data()
+			delete_ui()
+			utils.notify("Testcase " .. (editor.tcnum or "") .. "saved!", "INFO")
+		end
+	end
+
+	if editor.input_popup.winid and api.nvim_win_is_valid(editor.input_popup.winid) then
+		vim.wo[editor.input_popup.winid].winbar = "%#CompetiTestRunning# Input " .. editor.tcnum .. "%*%=%@v:lua.CompetiTestSaveAndCloseEditor@%#CompetiTestDone# [💾 Save] %T%*"
+	end
+	if editor.output_popup.winid and api.nvim_win_is_valid(editor.output_popup.winid) then
+		vim.wo[editor.output_popup.winid].winbar = "%#CompetiTestDone# Output " .. editor.tcnum .. "%*%=%@v:lua.CompetiTestSaveAndCloseEditor@%#CompetiTestDone# [💾 Save] %T%*"
+	end
+
 	---Creates mappings in popup buffer following settings specified in config
 	---@param p NuiPopup
 	---@param m "n" | "i" mappings mode (normal or insert)
