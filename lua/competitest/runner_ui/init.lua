@@ -125,6 +125,7 @@ function RunnerUI:new(runner)
 		windows = {},
 		interface = interface,
 		make_viewer_visible = false,
+		latest_error_timestamp = {},
 	}
 	setmetatable(this, self)
 	return this
@@ -505,24 +506,56 @@ function RunnerUI:update_ui()
 			---@type { line: integer, start_pos: integer, end_pos: integer, group: string }[]
 			local hlregions = {}
 
+			local is_empty_lines = function(lines)
+				if not lines or #lines == 0 then return true end
+				for _, l in ipairs(lines) do
+					if l ~= "" then return false end
+				end
+				return true
+			end
+
 			for tcindex, data in ipairs(self.runner.tcdata) do
 				local l = { header = "TC " .. data.tcnum, status = data.status, time = "" }
-				if data.tcnum == "Compile" then
+				local tc_key = data.tcnum or tcindex
+				local is_compile = (data.tcnum == "Compile")
+				if is_compile then
 					l.header = data.tcnum
-					if
-						not data.running
-						and not data.killed
-						and data.exit_code
-						and data.exit_code ~= 0
-						and data.process.starting_time ~= self.latest_compilation_timestamp
-					then
-						self.update_testcase = 1
-						self.update_details = true
-						self.viewer_content = "se"
-						self.make_viewer_visible = (self.runner.config.runner_ui.viewer.open_when_compilation_fails ~= false)
-						self.latest_compilation_timestamp = data.process.starting_time
-					end
 				end
+
+				local has_compile_error = is_compile
+					and not data.running
+					and not data.killed
+					and data.exit_code
+					and data.exit_code ~= 0
+					and data.process
+					and data.process.starting_time ~= self.latest_error_timestamp["Compile"]
+
+				local has_runtime_error = (not is_compile)
+					and not data.running
+					and not data.killed
+					and (
+						(data.exit_signal and data.exit_signal ~= 0)
+						or (data.exit_code and data.exit_code ~= 0)
+						or (data.stderr and not is_empty_lines(data.stderr))
+						or (data.status and (string.find(data.status, "SIG") or string.find(data.status, "RET") or data.status == "FAILED"))
+					)
+					and data.process
+					and data.process.starting_time ~= self.latest_error_timestamp[tc_key]
+
+				if has_compile_error then
+					self.update_testcase = 1
+					self.update_details = true
+					self.viewer_content = "se"
+					self.make_viewer_visible = (self.runner.config.runner_ui.viewer.open_when_compilation_fails ~= false)
+					self.latest_error_timestamp["Compile"] = data.process.starting_time
+				elseif has_runtime_error then
+					self.update_testcase = tcindex
+					self.update_details = true
+					self.viewer_content = "se"
+					self.make_viewer_visible = (self.runner.config.runner_ui.viewer.open_when_compilation_fails ~= false)
+					self.latest_error_timestamp[tc_key] = data.process.starting_time
+				end
+
 				if data.time and data.time ~= -1 then
 					l.time = string.format("%.3f seconds", data.time / 1000)
 				end
@@ -574,9 +607,9 @@ function RunnerUI:update_ui()
 
 			if not self.update_testcase then
 				self.update_testcase = default_idx
-				if self.windows.tc and self.windows.tc.winid and api.nvim_win_is_valid(self.windows.tc.winid) then
-					pcall(api.nvim_win_set_cursor, self.windows.tc.winid, { default_idx, 0 })
-				end
+			end
+			if self.windows.tc and self.windows.tc.winid and api.nvim_win_is_valid(self.windows.tc.winid) then
+				pcall(api.nvim_win_set_cursor, self.windows.tc.winid, { self.update_testcase or default_idx, 0 })
 			end
 
 			local data = self.runner.tcdata[self.update_testcase or default_idx]
@@ -593,16 +626,8 @@ function RunnerUI:update_ui()
 				vim.bo[bufnr].modifiable = true
 			end
 
-			local function is_empty_lines(lines)
-				if not lines or #lines == 0 then return true end
-				for _, l in ipairs(lines) do
-					if l ~= "" then return false end
-				end
-				return true
-			end
-
 			local err_lines = data.stderr
-			if is_empty_lines(err_lines) and data.exit_code and data.exit_code ~= 0 then
+			if is_empty_lines(err_lines) and ((data.exit_code and data.exit_code ~= 0) or (data.exit_signal and data.exit_signal ~= 0)) then
 				err_lines = data.stdout
 			end
 
@@ -612,7 +637,7 @@ function RunnerUI:update_ui()
 			set_buf_content(self.windows.se.bufnr, err_lines)
 
 			if self.windows.se then
-				local has_error = (data.exit_code and data.exit_code ~= 0) or not is_empty_lines(err_lines)
+				local has_error = (data.exit_code and data.exit_code ~= 0) or (data.exit_signal and data.exit_signal ~= 0) or not is_empty_lines(err_lines)
 				if has_error then
 					pcall(function()
 						self.windows.se:show()
