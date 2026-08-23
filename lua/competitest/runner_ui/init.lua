@@ -489,6 +489,14 @@ local function adjust_string(len, str, fchar)
 	end
 end
 
+local function is_empty_lines(lines)
+	if not lines or #lines == 0 then return true end
+	for _, l in ipairs(lines) do
+		if l ~= "" then return false end
+	end
+	return true
+end
+
 ---Update Runner UI
 function RunnerUI:update_ui()
 	vim.schedule(function()
@@ -505,14 +513,6 @@ function RunnerUI:update_ui()
 			local lines = {}
 			---@type { line: integer, start_pos: integer, end_pos: integer, group: string }[]
 			local hlregions = {}
-
-			local is_empty_lines = function(lines)
-				if not lines or #lines == 0 then return true end
-				for _, l in ipairs(lines) do
-					if l ~= "" then return false end
-				end
-				return true
-			end
 
 			for tcindex, data in ipairs(self.runner.tcdata) do
 				local l = { header = "TC " .. data.tcnum, status = data.status, time = "" }
